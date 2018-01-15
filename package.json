@@ -1,0 +1,19 @@
+{
+	"name": "nano-wave",
+	"version": "1.0.0",
+	"description": "Control ZWave and audio via midi controllers",
+	"main": "nano-wave.js",
+	"scripts": {
+		"test": "echo \"Error: no test specified\" && exit 1"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://archive.voodoowarez.com/nano-wave"
+	},
+	"keywords": [],
+	"author": "rektide de la faye",
+	"license": "X11",
+	"dependencies": {
+		"web-midi-api": "^1.4.4"
+	}
+}
