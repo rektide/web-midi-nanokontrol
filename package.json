@@ -1,7 +1,7 @@
 {
 	"name": "web-midi-nanokontrol",
 	"version": "1.0.0",
-	"description": "Configure Korg Nanokontrol2 scene settings via web-midi",
+	"description": "Configure Korg Nanokontrol2 via web-midi",
 	"main": "nano-wave.js",
 	"scripts": {
 		"test": "echo \"Error: no test specified\" && exit 1"
