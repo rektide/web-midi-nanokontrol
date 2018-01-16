@@ -9,6 +9,7 @@ export let defaults= {
 	sub: 0,
 	terminator: 0xF7
 }
+const moduleDefaults= defaults
 
 /**
   @param value - the matching part of the byte
@@ -34,7 +35,56 @@ function kv( value, name, extra, label, variable){
 	if( variable=== null){
 		variable= undefined
 	}
-	return { name, value, extra, label, variable}
+	return { value, name, extra, label, variable}
+}
+
+class Message( kvs){
+	constructor( kvs, defaults){
+		this.kvs= kvs
+		this.defaults= defaults|| moduleDefaults
+		this.names= {}
+		for( var kv of kvs){
+			this.kv[ kv.name]= kv
+		}
+	}
+	assign( options){
+		Object.assign( this, options)
+	}
+	toBytes(){
+		var
+		  defaults= this.defaults|| {},
+		  output= [],
+		  missing= []
+		for( var kv of this.kvs){
+			var
+			  extra= kv.extra&& (this[ kv.extra]|| defaults[ kv.extra]),
+			  value= kv.value+ extra
+			if( val=== undefined){
+				missing.push( kv.name)
+				continue
+			}
+			output.push( val)
+		}
+		if( missing.length){
+			throw new Error("Missing properties "+ missing.join(", "))
+		}
+		return output
+	}
+	fromBytes( bytes){
+		var variable= false
+		// forward
+		for( var i in this.kvs){
+			
+			//this[ kv.name]= kv.value
+		}
+		if( variable){
+			return this
+		}
+		// walk backwards
+		for( var i= 0; i> 0; ++i){
+			
+		}
+	}
 }
 
 // Transmitted data (1)
@@ -151,7 +201,7 @@ export searchDeviceReply= [
 	kv( 0x7F, "endOfExclusive")
 ]
 
-// Recognized receive data:
+// Recognized receive data (2)
 
 export let inquiry= function( options){
 	const o= Object.assign({}, defaults, options)
