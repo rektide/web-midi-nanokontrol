@@ -38,6 +38,37 @@ function kv( value, name, extra, label, variable){
 	return { value, name, extra, label, variable}
 }
 
+function MessageFactory( kvs, staticDefaults){
+	return class extends Message {
+		constructor( vals, defaults){
+			super( kvs, defaults)
+			Object.assign( this, moduleDefaults, defaults|| staticDefaults, this, vals) // i dunno i'm making this defaults stuff up
+		}
+	}
+}
+
+const byteMask= 0xFF
+
+/**
+  create a mask of all bits in the byte right of first bit
+*/
+function extraMask( bite, kvFilter){
+	var rightShifts= 8 // pessemistically shift an entire byte
+
+	var
+	  cursor= bite,
+	  prev,
+	  leftToFill= 0
+	do{
+		prev= cursor
+		cursor= cursor| ( cursor<< 1)
+		cursor= cursor& byteMask
+		++leftToFill
+	}while( cursor!= prev)
+	var extraMask= (cursor^ byteMask)& byteMask
+	return extraMask
+}
+
 class Message( kvs){
 	constructor( kvs, defaults){
 		this.kvs= kvs
@@ -45,6 +76,15 @@ class Message( kvs){
 		this.names= {}
 		for( var kv of kvs){
 			this.kv[ kv.name]= kv
+		}
+		this.defaults()
+	}
+	defaults(){
+		for( var kv of this.kvs){
+			var val= kv.value!== undefined? kv.value: this.defaults[ kv.name]
+			if( val!== undefined){
+				this[ kv.name]= val
+			}
 		}
 	}
 	assign( options){
@@ -71,45 +111,64 @@ class Message( kvs){
 		return output
 	}
 	fromBytes( bytes){
-		var variable= false
+		var
+		  variable= false,
+		  load= i=>{
+			var
+			  kv= this.kvs[ i],
+			  bite= bytes[ i],
+			  em= extraMask( bite, kv)
+			this[ kv.name]= kv.value // re- defaults()
+			if( kv.extra){
+				var
+			  	  em= extraMask( bite, kv),
+			  	  extra= bite& em
+				this[ kv.extra]= extra // read in extra
+			}
+		  }
 		// forward
 		for( var i in this.kvs){
-			
-			//this[ kv.name]= kv.value
+			load( i)
+			var kv= this.kvs[ i]
+			if( kv.variable){
+				variable= i
+				break
+			}
 		}
-		if( variable){
-			return this
+		if( !variable){
+			return
 		}
 		// walk backwards
-		for( var i= 0; i> 0; ++i){
-			
+		var j
+		for( j= this.kvs.length- 1; i> variable; --i){
+			load( i)
 		}
 	}
 }
 
 // Transmitted data (1)
 
-export let noteOff= [
+export let noteOff= MessageFactory([
 	kv( 0x80, "status", "channel", "noteOff"),
 	kv( 0, null, "note"),
-	kv( 0x40)],
-export let noteOffDaw= [
+	kv( 0x40)])
+export let noteOffDaw= MessageFactory([
 	kv( 0x90, "status", "channel", "noteOffDaw"),
 	kv( 0, null, "note"),
-	kv( 00)],
-export let noteOn= [
+	kv( 00)])
+export let noteOn= MessageFactory([
 	kv( 0x9, "status", "channel", "noteOn"),
 	kv( 0, null, "note"),
-	kv( 0, null, "velocity")],
-export let controlChange= [
+	kv( 0, null, "velocity")])
+export let controlChange= MessageFactory([
 	kv( 0xB0, "status", "channel", "controlChange"),
 	kv( 0, null, "control-change"),
-	kv( 0, null, "value")],
-export let pitchBlend= [
+	kv( 0, null, "value")])
+export let pitchBlend= MessageFactory([
 	kv( 0xE0, "status", "channel", "pitchBlend"),
 	kv( 0, null, "value"),
 	kv( 0, null, "value")
-]
+])
 
 /**
   Channel Messages (1-1)
@@ -125,7 +184,7 @@ export let channelMessage= {
 /**
  Device Inquiry Reply: transmitted when inquiry message request received (1-2)
 */
-export deviceInquiryReply= [
+export deviceInquiryReply= MessageFactory([
 	kv( 0xF0, "status", null, "deviceInquiryRepl")
 	kv( 0x7E, "nonRealtime"),
 	kv( 0, "device", "midiChannel"),
@@ -141,9 +200,9 @@ export deviceInquiryReply= [
 	kv( 0, null, "softwareProjectMajorLsb"),
 	kv( 0, null, "softwareProjectMajorLsb"),
 	kv( 0xF7, "endOfExclusive")
-]
+])
 
-export let exclusiveTransmitted= [
+export let exclusiveTransmitted= MessageFactory([
 	kv( 0xF0, "status", null, "exclusive")
 	kv( 0x42, "message", null, "korg"),
 	kv( 0x40, "device", "midiChannel"),
@@ -155,7 +214,7 @@ export let exclusiveTransmitted= [
 	kv( 0, null, "functionOrLength"),
 	kv( 0, "data", null, null, true)
 	kv( 0xF7, "endOfExclusive")
-]
+])
 
 // 8th byte in Korg exclusive messages transmitted
 export let exclusiveTransmittedCommand= {
@@ -183,7 +242,7 @@ export let exclusiveTransmittedFunctionOnExclusive= {
 }
 export let exclusiveTransmittedFunction= Object.assign({}, requestFunction, exclusiveFunction)
 
-export searchDeviceReply= [
+export searchDeviceReply= MessageFactory([
 	kv( 0xF0, "status", null, "exclusive")
 	kv( 0x42, "message", null, "korg"),
 	kv( 0x50, "device", null, "search"),
@@ -199,15 +258,18 @@ export searchDeviceReply= [
 	kv( 0, null, "softwareProjectMajorLsb"),
 	kv( 0, null, "softwareProjectMajorLsb"),
 	kv( 0x7F, "endOfExclusive")
-]
+])
 
 // Recognized receive data (2)
 
-export let inquiry= function( options){
-	const o= Object.assign({}, defaults, options)
-	// this is a universal message, unlike the others
-	return [ o.exclusive, o.channel, 0x06, 0x01, 0xF7]
-}
+export let inquiry= MessageFactory([
+	kv( 0xF0, "status", null, "exclusive")
+	kv( 0x7E, "message", null, "nonRealtime")
+	kv( 0, "device", "midiChannel")
+	kv( 6, "generalInformation"),
+	kv( 1, "identityRequest"),
+	kv( 0xF7, "endOfExclusive")
+])
 
 function message( payload, messageOptions){
 	return function( options){
