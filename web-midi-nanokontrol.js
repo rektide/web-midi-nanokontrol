@@ -64,6 +64,5 @@ class NanoWave{
 		  outputName= optionalOutputName|| this.midi.outputs.keys().next().value,
 		  output= this.midi.outputs.get( optionalOutputName)
 		output.open()
-		
 	}
 }

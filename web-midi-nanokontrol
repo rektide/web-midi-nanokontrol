@@ -2,7 +2,7 @@
 "use strict"
 
 var stdEsm= require("@std/esm")(module, options)
-module.exports= stdEsm("./nano-wave.js").default
+module.exports= stdEsm("./web-midi-nanokontrol.js").default
 module.exports.main= stdEsm("./main.js").default
 
 if( require.main=== module){

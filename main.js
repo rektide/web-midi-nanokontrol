@@ -1,5 +1,5 @@
-import NanoWave from "./nano-wave"
+import WebMidiNanoKontrol from "./web-midi-nanokontrol2.js"
 
-var nanoWave= new NanoWave()
+var webMidiNanoKontrol= new WebMidiNanoKontrol()
 
-module.exports= nanoWave
+module.exports= webMidiNanoKontrol
