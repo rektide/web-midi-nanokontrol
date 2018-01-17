@@ -1,3 +1,5 @@
+import defineBinding from "define-binding"
+
 // via https://github.com/overtone/overtone/blob/master/src/overtone/device/midi/nanoKONTROL2.clj#L134-L164
 
 export let defaults= {
@@ -15,10 +17,12 @@ const moduleDefaults= defaults
   @param value - the matching part of the byte
   @param name - the general description for this byte
   @param extra - description of the free bits in this byte. if name is null, assume entire byte is this description.
+
   @param label - description if this is a particular static value of a byte
   @param variable - true if this might represent a variable number of bytes
 */
-function kv( value, name, extra, label, variable){
+function kv( value, name, extra, more){
+	more= more|| {}
 	const noName= name=== undefined|| name=== null
 	if( noName&& extra!== undefined){
 		name= extra
@@ -29,61 +33,71 @@ function kv( value, name, extra, label, variable){
 	if( extra=== null){
 		extra= undefined
 	}
-	if( label=== null){
-		label= undefined
-	}
-	if( variable=== null){
-		variable= undefined
-	}
-	return { value, name, extra, label, variable}
+	return { value, name, extra, ...more)
 }
 
 function MessageFactory( kvs, staticDefaults){
-	return class extends Message {
+	var klass= class extends Message {
 		constructor( vals, defaults){
 			super( kvs, defaults)
 			Object.assign( this, moduleDefaults, defaults|| staticDefaults, this, vals) // i dunno i'm making this defaults stuff up
 		}
 	}
+	// thought of these statics working on a static fromBytes impl
+	klass.kvs= kvs
+	klass.staticDefaults= staticDefaults
+	return klass
 }
+
+
+const
+  statusExclusive= kv( 0xF0, "status", null,{ label: "exclusive"}),
+  messageKorg= kv( 0x42, "message", null,{ label: "korg"})
 
 const byteMask= 0xFF
 
 /**
   create a mask of all bits in the byte right of first bit
 */
-function extraMask( bite, kvFilter){
-	var rightShifts= 8 // pessemistically shift an entire byte
-
-	var
-	  cursor= bite,
-	  prev,
-	  leftToFill= 0
-	do{
-		prev= cursor
-		cursor= cursor| ( cursor<< 1)
-		cursor= cursor& byteMask
-		++leftToFill
-	}while( cursor!= prev)
-	var extraMask= (cursor^ byteMask)& byteMask
-	return extraMask
+function extraMask( bite, kv){
+	var extraMask= kv.extraMask
+	if( extraMask=== undefined){
+		// tempted to be more algorithmic, but this heuristic holds
+		extraMask= kv.value? 0xF: 0xFF
+	}
+	//if( !extraMask){
+	//	extraMask= bite
+	//	var prev
+	//	do{
+	//		prev= extraMask
+	//		extraMask= extraMask| ( extraMask<< 1)
+	//		extraMask= extraMask& byteMask
+	//	}while( extraMask!= prev)
+	//}
+	return bite& extraMask& byteMask
 }
 
 class Message( kvs){
-	constructor( kvs, defaults){
+	constructor( kvs, options){
+		options= options|| {}
 		this.kvs= kvs
-		this.defaults= defaults|| moduleDefaults
-		this.names= {}
-		for( var kv of kvs){
-			this.kv[ kv.name]= kv
+		this.defaults= options.defaults|| {}
+		for( var i in moduleDefaults){
+			defineBinding( this.defaults, i, moduleDefaults) // sett
 		}
-		this.defaults()
+		this.loadDefaults()
+		if( options.bytes){
+			this.fromBytes( options.bytes)
+		}
 	}
-	defaults(){
+	loadDefaults(){
 		for( var kv of this.kvs){
-			var val= kv.value!== undefined? kv.value: this.defaults[ kv.name]
+			var val= kv.value!== undefined? kv.value: this.defaults[ kv.name]|| 0
 			if( val!== undefined){
 				this[ kv.name]= val
+			}
+			if( kv.extra){
+				this[ kv.extra]= this.defaults[ kv.extra]|| 0
 			}
 		}
 	}
@@ -110,62 +124,71 @@ class Message( kvs){
 		}
 		return output
 	}
+	// big feels this would be better static.
 	fromBytes( bytes){
-		var
-		  variable= false,
-		  load= i=>{
+		var tryLoad= (indexKv,indexBytes)=>{
 			var
-			  kv= this.kvs[ i],
-			  bite= bytes[ i],
-			  em= extraMask( bite, kv)
-			this[ kv.name]= kv.value // re- defaults()
+			  kv= this.kvs[ indexKv],
+			  bite= bytes[ indexBytes=== undefined? indexBytes: indexKv],
+			  checkValue= bite
+			this[ kv.name]= bite
 			if( kv.extra){
 				var
-			  	  em= extraMask( bite, kv),
-			  	  extra= bite& em
-				this[ kv.extra]= extra // read in extra
+				  mask= extraMask( bite, kv),
+				  inverse= mask^ byteMask,
+				  extra= bite& mask
+				this[ kv.extra]= extra
+				// remove "extra" such that we can check against value
+				checkValue&= inverse
 			}
-		  }
-		// forward
+			return checkValue=== kv.value
+		}
+
+		// iterate forward until "variable"
 		for( var i in this.kvs){
-			load( i)
+			if( !load( i)){
+				return false
+			}
 			var kv= this.kvs[ i]
 			if( kv.variable){
 				variable= i
 				break
 			}
 		}
-		if( !variable){
-			return
+		if( variable){
+			// iterate backwards
+			// walk backwards
+			for( var i= this.kvs.length- 1; i> variable; --i){
+				var varlen= this.bytes.length- this.kvs.length
+				if( !load( i, i+ varlen)){
+					return false
+				}
+			}
 		}
-		// walk backwards
-		var j
-		for( j= this.kvs.length- 1; i> variable; --i){
-			load( i)
-		}
+		return this
 	}
 }
 
 // Transmitted data (1)
 
 export let noteOff= MessageFactory([
-	kv( 0x80, "status", "channel", "noteOff"),
+	kv( 0x80, "status", "channel",{ label:"noteOff"}),
 	kv( 0, null, "note"),
 	kv( 0x40)])
 export let noteOffDaw= MessageFactory([
-	kv( 0x90, "status", "channel", "noteOffDaw"),
+	kv( 0x90, "status", "channel",{ label:"noteOffDaw"}),
 	kv( 0, null, "note"),
 	kv( 00)])
 export let noteOn= MessageFactory([
-	kv( 0x9, "status", "channel", "noteOn"),
+	kv( 0x9, "status", "channel",{ label: "noteOn"}),
 	kv( 0, null, "note"),
 	kv( 0, null, "velocity")])
 export let controlChange= MessageFactory([
-	kv( 0xB0, "status", "channel", "controlChange"),
+	kv( 0xB0, "status", "channel",{ label: "controlChange"}),
 	kv( 0, null, "control-change"),
 	kv( 0, null, "value")])
 export let pitchBlend= MessageFactory([
-	kv( 0xE0, "status", "channel", "pitchBlend"),
+	kv( 0xE0, "status", "channel",{ label: "pitchBlend"}),
 	kv( 0, null, "value"),
 	kv( 0, null, "value")
 ])
@@ -185,12 +208,12 @@ export let channelMessage= {
  Device Inquiry Reply: transmitted when inquiry message request received (1-2)
 */
 export deviceInquiryReply= MessageFactory([
-	kv( 0xF0, "status", null, "deviceInquiryRepl")
+	statusExclusive,
 	kv( 0x7E, "nonRealtime"),
 	kv( 0, "device", "midiChannel"),
 	kv( 6, "generalInformation"),
 	kv( 2, "identityReply"),
-	kv( 0x42, "manufacturerId", null, "KORG"),
+	kv( 0x42, "manufacturerId", null,{ label: "KORG"}),
 	kv( 0x13, "softwareProjectFamilyLsb"), //these are static
 	kv( 1, "softwareProjectFamilyMsb"),
 	kv( 0, "softwareProjectMemberLsb"),
@@ -203,16 +226,16 @@ export deviceInquiryReply= MessageFactory([
 ])
 
 export let exclusiveTransmitted= MessageFactory([
-	kv( 0xF0, "status", null, "exclusive")
-	kv( 0x42, "message", null, "korg"),
+	statusExclusive,
+	messageKorg,
 	kv( 0x40, "device", "midiChannel"),
 	kv( 0, "softwareProject1"),
 	kv( 1, "softwareProject2"),
 	kv( 0x13, "softwareProject3"),
 	kv( 0, "sub"),
-	kv( 0, null, "command"),
+	kv( 0, null, "command", { extraMask: 0x1F}),
 	kv( 0, null, "functionOrLength"),
-	kv( 0, "data", null, null, true)
+	kv( 0, "data", null, null,{ variable: true})
 	kv( 0xF7, "endOfExclusive")
 ])
 
@@ -243,8 +266,8 @@ export let exclusiveTransmittedFunctionOnExclusive= {
 export let exclusiveTransmittedFunction= Object.assign({}, requestFunction, exclusiveFunction)
 
 export searchDeviceReply= MessageFactory([
-	kv( 0xF0, "status", null, "exclusive")
-	kv( 0x42, "message", null, "korg"),
+	statusExclusive,
+	messageKorg,
 	kv( 0x50, "device", null, "search"),
 	kv( 1, "request"),
 	kv( 0, "device", "device", "midiChannel"),
@@ -263,7 +286,7 @@ export searchDeviceReply= MessageFactory([
 // Recognized receive data (2)
 
 export let inquiry= MessageFactory([
-	kv( 0xF0, "status", null, "exclusive")
+	statusExclusive,
 	kv( 0x7E, "message", null, "nonRealtime")
 	kv( 0, "device", "midiChannel")
 	kv( 6, "generalInformation"),
