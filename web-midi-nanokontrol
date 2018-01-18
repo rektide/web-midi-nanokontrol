@@ -3,8 +3,9 @@
 
 var stdEsm= require( "@std/esm")( module)
 exports.webMidiNanoKontrol= stdEsm( "./web-midi-nanokontrol.js").default
-exports.main= stdEsm( "./main.js").default
-exports.messages= stdEsm( "./messages.js").default
+exports.main= stdEsm( "./main.js")
+exports.messages= stdEsm( "./messages.js")
+exports.webMidiMessage= stdEsm( "web-midi-message")
 
 if( require.main=== module){
 	module.exports.main()

@@ -11,7 +11,8 @@ const moduleDefaults= defaults
 
 const
   statusExclusive= kv( 0xF0, "status", null,{ label: "exclusive"}),
-  messageKorg= kv( 0x42, "message", null,{ label: "korg"})
+  messageKorg= kv( 0x42, "message", null,{ label: "korg"}),
+  endOfExclusive= kv( 0xF7, "endOfExclusive")
 
 const byteMask= 0xFF
 
@@ -68,7 +69,7 @@ export let deviceInquiryReply= MessageFactory([
 	kv( 0, null, "softwareProjectMinorMsb"),
 	kv( 0, null, "softwareProjectMajorLsb"),
 	kv( 0, null, "softwareProjectMajorLsb"),
-	kv( 0xF7, "endOfExclusive")], defaults)
+	endOfExclusive], defaults)
 
 export let exclusiveTransmitted= MessageFactory([
 	statusExclusive,
@@ -81,19 +82,21 @@ export let exclusiveTransmitted= MessageFactory([
 	kv( 0, null, "command", { extraMask: 0x1F}),
 	kv( 0, null, "functionOrLength"),
 	kv( 0, "data", null, null,{ variable: true}),
-	kv( 0xF7, "endOfExclusive")], defaults)
+	endOfExclusive], defaults)
+
+export let commandMasks= {
+	// commands are defined via a struct of these bit-masks:
+	controllerToHostMask: 0x40,
+	variableLengthMask: 0x20,
+	commandMask: 0x1F
+}
 
 // 8th byte in Korg exclusive messages transmitted
 export let exclusiveTransmittedCommand= {
 	// these are complete, documented commands
 	nativeMode: 0x40,
 	packetCommunication: 0x5F, // "function" follows
-	dataDump: 0x7F, // "function" follows
-
-	// commands are defined via a struct of these bit-masks:
-	controllerToHostMask: 0x40,
-	variableLengthMask: 0x20,
-	commandMask: 0x1F
+	dataDump: 0x7F // "function" follows
 }
 
 // 9th byte, either one of these function ids, or variable data length
@@ -112,7 +115,7 @@ export let exclusiveTransmittedFunction= Object.assign({}, exclusiveTransmittedF
 export let searchDeviceReply= MessageFactory([
 	statusExclusive,
 	messageKorg,
-	kv( 0x50, "device", null, "search"),
+	kv( 0x50, "device", null,{ label: "search"}),
 	kv( 1, "request"),
 	kv( 0, "device", "device", "midiChannel"),
 	kv( 0, null, "echoBack"),
@@ -124,9 +127,11 @@ export let searchDeviceReply= MessageFactory([
 	kv( 0, null, "softwareProjectMinorMsb"),
 	kv( 0, null, "softwareProjectMajorLsb"),
 	kv( 0, null, "softwareProjectMajorLsb"),
-	kv( 0x7F, "endOfExclusive")], defaults)
+	endOfExclusive], defaults)
 
 // Recognized receive data (2)
+
+// Universal system exclusive message, non-realtime (2-1)
 
 export let inquiry= MessageFactory([
 	statusExclusive,
@@ -134,7 +139,59 @@ export let inquiry= MessageFactory([
 	kv( 0, "device", "midiChannel"),
 	kv( 6, "generalInformation"),
 	kv( 1, "identityRequest"),
-	kv( 0xF7, "endOfExclusive")], defaults)
+	endOfExclusive], defaults)
+
+export let exclusiveReceivedCommand= {
+	nativeMode: 0,
+	dataDumpRequest: 0x1F,
+	dataDump: 0x7F
+}
+
+export let exclusiveReceivedFunction= {
+	currentSceneDataDumpRequest: 0x10,
+	currentSceneDataDump: 0x40,
+	sceneWriteRequest: 0x11,
+	modeRequest: 0x12
+}
+
+export let searchDeviceRequest= MessageFactory([
+	statusExclusive,
+	messageKorg,
+	kv( 0x50, "device", null,{ label: "search"}),
+	kv( 0, "request"),
+	kv( 0, null, "echoBack"),
+	endOfExclusive], defaults)
+
+// MIDI Exclusive Format (3)
+
+// Standard messages (3-1)
+
+// 3-1-1, receve
+export let currentSceneDataDumpRequest= MessageFactory([
+	statusExclusive,
+	messageKorg,
+	kv( exclusiveReceivedCommand.nativeMode, "device", "midiChannel"),
+	kv( 0, "softwareProject1"),
+	kv( 1, "softwareProject2"),
+	kv( 0x13, "softwareProject3"),
+	kv( 0, "sub"),
+	kv( exclusiveReceivedFunction.currentSceneDumpRequest, "command"),
+	kv( 0, "unused"),
+	endOfExclusive], defaults)
+
+// 3-1-2, receive
+export let sceneWriteRequest= MessageFactory([
+	statusExclusive,
+	messageKorg,
+	kv( exclusiveReceivedCommand.nativeMode, "device", "midiChannel"),
+	kv( 0, "softwareProject1"),
+	kv( 1, "softwareProject2"),
+	kv( 0x13, "softwareProject3"),
+	kv( 0, "sub"),
+	kv( exclusiveReceivedFunction.sceneWriteRequest, "command"),
+	kv( 0, "unused"),
+	endOfExclusive], defaults)
+
 
 //export let modeRequest= message([ 0x1F, 0x12, 0x00])
 //export let currentSceneDataDumpRequest= message([ 0x1F, 0x10, 0])
