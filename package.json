@@ -16,6 +16,7 @@
 	"license": "X11",
 	"dependencies": {
 		"@std/esm": "^0.19.6",
+		"deferrant": "^1.0.0",
 		"web-midi-api": "^1.4.4"
 	},
 	"@std/esm": {

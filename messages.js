@@ -141,17 +141,23 @@ export let inquiry= MessageFactory([
 	kv( 1, "identityRequest"),
 	endOfExclusive], defaults)
 
-export let exclusiveReceivedCommand= {
+export let exclusiveReceiveCommand= {
 	nativeMode: 0,
 	dataDumpRequest: 0x1F,
 	dataDump: 0x7F
 }
 
-export let exclusiveReceivedFunction= {
+export let exclusiveReceiveFunction= {
 	currentSceneDataDumpRequest: 0x10,
 	currentSceneDataDump: 0x40,
 	sceneWriteRequest: 0x11,
 	modeRequest: 0x12
+}
+function erc( name){
+	return kv( exclusiveReceiveCommand[ name], "command", null,{ label: name})
+}
+function erf( name){
+	return kv( exclusiveReceiveFunction[ name], "function", null,{ label: name})
 }
 
 export let searchDeviceRequest= MessageFactory([
@@ -170,12 +176,13 @@ export let searchDeviceRequest= MessageFactory([
 export let currentSceneDataDumpRequest= MessageFactory([
 	statusExclusive,
 	messageKorg,
-	kv( exclusiveReceivedCommand.nativeMode, "device", "midiChannel"),
+	kv( 0x40, "device", "midiChannel"),
 	kv( 0, "softwareProject1"),
 	kv( 1, "softwareProject2"),
 	kv( 0x13, "softwareProject3"),
 	kv( 0, "sub"),
-	kv( exclusiveReceivedFunction.currentSceneDumpRequest, "command"),
+	erc( "dataDumpRequest"),
+	erf( "currentSceneDataDumpRequest"),
 	kv( 0, "unused"),
 	endOfExclusive], defaults)
 
@@ -183,14 +190,58 @@ export let currentSceneDataDumpRequest= MessageFactory([
 export let sceneWriteRequest= MessageFactory([
 	statusExclusive,
 	messageKorg,
-	kv( exclusiveReceivedCommand.nativeMode, "device", "midiChannel"),
+	kv( 0x40, "device", "midiChannel"),
 	kv( 0, "softwareProject1"),
 	kv( 1, "softwareProject2"),
 	kv( 0x13, "softwareProject3"),
 	kv( 0, "sub"),
-	kv( exclusiveReceivedFunction.sceneWriteRequest, "command"),
+	erc( "dataDumpRequest"),
+	erf( "sceneWriteRequest"),
 	kv( 0, "unused"),
 	endOfExclusive], defaults)
+
+export let nativeModeInOut= MessageFactory([
+	statusExclusive,
+	messageKorg,
+	kv( 0x40, "device", "midiChannel"),
+	kv( 0, "softwareProject1"),
+	kv( 1, "softwareProject2"),
+	kv( 0x13, "softwareProject3"),
+	kv( 0, "sub"),
+	kv( 0, "native1"),
+	kv( 0, "native2"),
+	kv( 0, null, "req",{ extraMask: 0x7F}),
+	endOfExclusive], defaults)
+
+export let modeRequest= MessageFactory([
+	statusExclusive,
+	messageKorg,
+	kv( 0x40, "device", "midiChannel"),
+	kv( 0, "softwareProject1"),
+	kv( 1, "softwareProject2"),
+	kv( 0x13, "softwareProject3"),
+	kv( 0, "sub"),
+	erc( "dataDumpCommand"),
+	erf( "modeRequest"),
+	kv( 0, "unused"),
+	endOfExclusive], defaults)
+
+// 3-1-5, r/t
+export let currentSceneDataDump= MessageFactory([
+	statusExclusive,
+	messageKorg,
+	kv( 0x40, "device", "midiChannel"),
+	kv( 0, "softwareProject1"),
+	kv( 1, "softwareProject2"),
+	kv( 0x13, "softwareProject3"),
+	kv( 0, "sub"),
+	erc( "dataDump"),
+	kv( 0x7F, "over"),
+	kv( 3, "numDataMsb"),
+	kv( 5, "numDataLsb"),
+	erc( "currentSceneDataDump"),
+	kv( 0, "data", null,{ variable: true}),
+	endOfExclusive], defaults);
 
 
 //export let modeRequest= message([ 0x1F, 0x12, 0x00])

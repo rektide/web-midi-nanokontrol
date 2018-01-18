@@ -1,4 +1,7 @@
 import { requestMIDIAccess, close} from "web-midi-api"
+import EventEmitter from "events"
+import deferrant from "deferrant"
+import * as messages from "./messages"
 
 // MIDI implementation doc: http://www.korg.com/us/support/download/manual/0/159/2710/
 
@@ -26,7 +29,7 @@ const transport= {
 	record: 45
 }
 
-class NanoKontrol2{
+class NanoKontrol2 extends EventEmitter{
 	static get Group(){
 		return group
 	}
@@ -35,7 +38,9 @@ class NanoKontrol2{
 	}
 
 	constructor(){
-		
+		super()
+		// debug purposes:
+		this.on( "midimessage", m=> console.log( m))
 	}
 	async requestAccess(){
 		if( this.midi){
@@ -51,9 +56,9 @@ class NanoKontrol2{
 		}
 		var
 		  inputName= optionalInputName|| this.midi.inputs.keys().next().value,
-		  input= this.midi.inputs.get( optionalInputName)
-		input.open()
-		input.onmidimessage= m=> console.log( m)
+		  input= this.midi.inputs.get( inputName)
+		console.log({inputName, input})
+		input.onmidimessage= m=> this.emit( "midimessage", m)
 	}
 	async consumeOutput( optionalOutputName){
 		// zalgo zalgo zalgo
@@ -62,8 +67,29 @@ class NanoKontrol2{
 		}
 		var
 		  outputName= optionalOutputName|| this.midi.outputs.keys().next().value,
-		  output= this.midi.outputs.get( optionalOutputName)
+		  output= this.midi.outputs.get( outputName)
 		output.open()
+		return output
+	}
+	async dumpScene( optionalOutputName){
+		var output= await this.consumeOutput( optionalOutputName)
+		readOne( messages.currentSceneDataDump)
+		output.send( new messages.currentSceneDataDumpRequest().toBytes())
+	}
+	async readOne( messageKlass){
+		var
+		  instance= new messageKlass(),
+		  d= new deferrant()
+		var handler= msg=>{
+			var success= instance.fromBytes( msg.data)
+			console.log("READING", {success, instance})
+			if( success){
+				d.resolve( instance)
+				this.removeListener( "midimessage", handler)
+			}
+		}
+		m.on( "midimessage", handler)
+		return await d
 	}
 }
 
