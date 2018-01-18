@@ -1,5 +1,5 @@
-import WebMidiNanoKontrol from "./web-midi-nanokontrol2.js"
+import WebMidiNanoKontrol from "./web-midi-nanokontrol.js"
 
-var webMidiNanoKontrol= new WebMidiNanoKontrol()
+let webMidiNanoKontrol= new WebMidiNanoKontrol();
 
-module.exports= webMidiNanoKontrol
+export {webMidiNanoKontrol};

@@ -1,4 +1,4 @@
-import { requestAccess, close} from "web-midi-api"
+import { requestMIDIAccess, close} from "web-midi-api"
 
 // MIDI implementation doc: http://www.korg.com/us/support/download/manual/0/159/2710/
 
@@ -26,7 +26,7 @@ const transport= {
 	record: 45
 }
 
-class NanoWave{
+class NanoKontrol2{
 	static get Group(){
 		return group
 	}
@@ -66,3 +66,6 @@ class NanoWave{
 		output.open()
 	}
 }
+
+export default NanoKontrol2
+export {NanoKontrol2}

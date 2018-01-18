@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 "use strict"
 
-var stdEsm= require("@std/esm")(module, options)
-module.exports= stdEsm("./web-midi-nanokontrol.js").default
-module.exports.main= stdEsm("./main.js").default
+var stdEsm= require( "@std/esm")( module)
+exports.webMidiNanoKontrol= stdEsm( "./web-midi-nanokontrol.js").default
+exports.main= stdEsm( "./main.js").default
+exports.messages= stdEsm( "./messages.js").default
 
 if( require.main=== module){
 	module.exports.main()

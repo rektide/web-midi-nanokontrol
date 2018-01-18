@@ -2,7 +2,8 @@
 	"name": "web-midi-nanokontrol",
 	"version": "1.0.0",
 	"description": "Configure Korg Nanokontrol2 via web-midi",
-	"main": "nano-wave.js",
+	"main": "index.js",
+	"module": "web-midi-nanokontrol.js",
 	"scripts": {
 		"test": "echo \"Error: no test specified\" && exit 1"
 	},
@@ -14,6 +15,14 @@
 	"author": "rektide de la faye",
 	"license": "X11",
 	"dependencies": {
+		"@std/esm": "^0.19.6",
 		"web-midi-api": "^1.4.4"
+	},
+	"@std/esm": {
+		"esm": "js",
+		"cjs": {
+			"cache": true,
+			"namedExports": true
+		}
 	}
 }
