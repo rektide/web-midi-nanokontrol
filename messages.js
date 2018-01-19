@@ -237,9 +237,10 @@ export let currentSceneDataDump= MessageFactory([
 	kv( 0, "sub"),
 	erc( "dataDump"),
 	kv( 0x7F, "over"),
+	kv( 2, "twoByte"),
 	kv( 3, "numDataMsb"),
 	kv( 5, "numDataLsb"),
-	erc( "currentSceneDataDump"),
+	erf( "currentSceneDataDump"),
 	kv( 0, "data", null,{ variable: true}),
 	endOfExclusive], defaults);
 
