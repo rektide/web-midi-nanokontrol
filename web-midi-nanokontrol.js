@@ -76,10 +76,10 @@ class NanoKontrol2 extends EventEmitter{
 		output.send( new messages.currentSceneDataDumpRequest().toBytes())
 
 		var scene= await readResponse
-		scene.data= NanoKontrol2.bitMash( scene.data)
+		scene.data= NanoKontrol2.decodeScene( scene.data)
 		return scene
 	}
-	static bitMash( bytes){
+	static decodeScene( bytes){
 		var
 		  n= Math.floor( bytes.length* 7/ 8),
 		  output= new Uint8Array( n)
@@ -96,7 +96,7 @@ class NanoKontrol2 extends EventEmitter{
 			// move on to the next bit in the high byte, which will require one less shift
 			--highBitShifts
 			// see if there are remaining bits
-			if(highBitShifts< 1){ // the last bit is 0, unused
+			if( highBitShifts< 1){ // the last bit is 0, unused
 				// we've used all 7 bits. the next byte will be a new high byte. advance through it.
 				++highCount // there is a new high byte
 				highPos+= 8 // we've just read a high byte and seven bytes, so we are +8
@@ -104,6 +104,29 @@ class NanoKontrol2 extends EventEmitter{
 			}
 		}
 		return output
+	}
+	static encodeScene( bytes){
+		var
+		  n= Math.ceil( bytes.length* 8/ 7),
+		  output= new UintArray( n)
+		var
+		  highPos= 0,
+		  highCount= 1,
+		  highBitShifts= 7
+		for( var i= 0; i< bytes.length; ++i){
+			var
+			  val= bytes[ i],
+			  lowerBits= val& 0x7F,
+			  highBit= (val& 0x80) >> highBitShifts
+			output[ i+ highCount]= lowerBits
+			output[ highPos]|= highBit
+			--highBitShifts
+			if( highBitShifts< 1){
+				++highCount
+				highPos+= 8
+				highBitShifts= 7
+			}
+		}
 	}
 	async readOne( messageKlass){
 		var
