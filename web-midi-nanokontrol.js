@@ -41,40 +41,59 @@ class NanoKontrol2 extends EventEmitter{
 		super()
 	}
 	async requestAccess(){
-		if( this.midi){
-			return this.midi
-		}
-		this.midi= await requestMIDIAccess( this.midiOptions)
-		return this.midi
-	}
-	consumeInput( optionalInputName){
-		// get midi, embrace zalgo
 		if( !this.midi){
-			return this.requestAccess().then( _=> this.consumeInput( optionalInputName))
+			this.midi= requestMIDIAccess( this.midiOptions)
+			this.midi= await this.midi
 		}
-		var
-		  inputName= optionalInputName|| this.midi.inputs.keys().next().value,
-		  input= this.midi.inputs.get( inputName)
-		//console.log({inputName, input})
-		input.onmidimessage= m=> this.emit( "midimessage", m)
+		return await this.midi
 	}
-	async consumeOutput( optionalOutputName){
+	_consume( optionalName, category){
 		// zalgo zalgo zalgo
 		if( !this.midi){
-			return this.requestAccess().then( _=> this.consumeOutput( optionalOutputName))
+			return this.requestAccess().then( _=> this._consume( optionalName, category))
 		}
-		var
-		  outputName= optionalOutputName|| this.midi.outputs.keys().next().value,
-		  output= this.midi.outputs.get( outputName)
-		output.open()
-		return output
+		var target
+		if( !optionalName){
+			var firstId= this.midi[ category].keys().next().value
+			target= this.midi[ category].get( firstId)
+		}else{
+			var lowerOptional= optionalName.toLowerCase()
+			for( var el of this.midi[ category]){
+				var port= el[ 1]
+				if( port.name.toLowerCase().indexOf( lowerOptional)!== -1){
+					target= port
+					break
+				}
+			}
+		}
+		if( !target){
+			return
+		}
+		if( target.open){
+			target.open()
+		}
+		return target
 	}
-	async dumpScene( optionalOutputName){
-		var readResponse= this.readOne( messages.currentSceneDataDump)
+	consumeInput( optionalInputName){
+		return this._consume( optionalInputName, "inputs")
+	}
+	consumeOutput( optionalOutputName){
+		return this._consume( optionalOutputName, "outputs")
+	}
+	async dumpScene( optionalName, optionalInputName){
+		// get output midi
+		var
+		  output= await this.consumeOutput( optionalName),
+		  name= output.name
 
-		var output= await this.consumeOutput( optionalOutputName)
-		output.send( new messages.currentSceneDataDumpRequest().toBytes())
+		// prepare to read scene dump on input
+		var readResponse= this.readOne( messages.currentSceneDataDump, optionalInputName|| name)
 
+		// send requeset
+		var req= new messages.currentSceneDataDumpRequest().toBytes()
+		output.send( req)
+
+		// wait for scene dump
 		var scene= await readResponse
 		scene.data= NanoKontrol2.decodeScene( scene.data)
 		return scene
@@ -128,7 +147,7 @@ class NanoKontrol2 extends EventEmitter{
 			}
 		}
 	}
-	async readOne( messageKlass){
+	async readOne( messageKlass, optionalOutputName){
 		var
 		  instance= new messageKlass(),
 		  d= Defer()
@@ -139,7 +158,8 @@ class NanoKontrol2 extends EventEmitter{
 				this.removeListener( "midimessage", handler)
 			}
 		}
-		this.on( "midimessage", handler)
+		var port= await this.consumeInput( optionalOutputName)
+		port.addEventListener( "midimessage", handler)
 		return await d.promise
 	}
 }
