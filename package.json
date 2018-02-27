@@ -16,7 +16,7 @@
 	"license": "X11",
 	"dependencies": {
 		"@std/esm": "^0.19.6",
-		"p-defer": "^1.0.0",
+		"eventtarget-once": "^1.0.0",
 		"web-midi-api": "^1.4.4",
 		"web-midi-message": "^1.0.0"
 	},

@@ -1,7 +1,7 @@
 import { requestMIDIAccess, close} from "web-midi-api"
-import EventEmitter from "events"
-import Defer from "p-defer"
+import once from "eventtarget-once"
 import * as messages from "./messages"
+import { loadListenFor} from "web-midi-message/Message.js"
 
 // MIDI implementation doc: http://www.korg.com/us/support/download/manual/0/159/2710/
 
@@ -29,7 +29,7 @@ const transport= {
 	record: 45
 }
 
-class NanoKontrol2 extends EventEmitter{
+class NanoKontrol2{
 	static get Group(){
 		return group
 	}
@@ -37,9 +37,6 @@ class NanoKontrol2 extends EventEmitter{
 		return transport
 	}
 
-	constructor(){
-		super()
-	}
 	async requestAccess(){
 		if( !this.midi){
 			this.midi= requestMIDIAccess( this.midiOptions)
@@ -69,8 +66,13 @@ class NanoKontrol2 extends EventEmitter{
 		if( !target){
 			return
 		}
-		if( target.open){
+		if( target.open&& target.connection!== "open"){
+			// wait for open state
+			var opened= once( target, "statechange", { filter: portOpenFilter})
+			// open
 			target.open()
+			// return target once open
+			return opened.then( _=> target)
 		}
 		return target
 	}
@@ -87,6 +89,8 @@ class NanoKontrol2 extends EventEmitter{
 		  name= output.name
 
 		// prepare to read scene dump on input
+		await this.consumeInput( optionalInputName|| name)
+		await loadListenFor()
 		var readResponse= this.readOne( messages.currentSceneDataDump, optionalInputName|| name)
 
 		// send requeset
@@ -147,21 +151,17 @@ class NanoKontrol2 extends EventEmitter{
 			}
 		}
 	}
-	async readOne( messageKlass, optionalOutputName){
-		var
-		  instance= new messageKlass(),
-		  d= Defer()
-		var handler= msg=>{
-			var success= instance.fromBytes( msg.data)
-			if( success){
-				d.resolve( instance)
-				this.removeListener( "midimessage", handler)
-			}
+	async readOne( messageKlass, optionalInputName){
+		var port= this.consumeInput( optionalInputName)
+		if( port.then){
+			port= await port.then
 		}
-		var port= await this.consumeInput( optionalOutputName)
-		port.addEventListener( "midimessage", handler)
-		return await d.promise
+		return await messageKlass.listenFor( port, "midimessage")
 	}
+}
+
+function portOpenFilter( msg, {eventType}){
+	return msg.port&& msg.port.connection=== "open"
 }
 
 export default NanoKontrol2
