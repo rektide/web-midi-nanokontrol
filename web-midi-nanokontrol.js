@@ -66,10 +66,10 @@ class NanoKontrol2{
 		if( !target){
 			return
 		}
-		if( target.open&& target.connection!== "open"){
+		if( target.open&& !portOpenFilter({ port: target})){
 			// wait for open state
 			var opened= once( target, "statechange", { filter: portOpenFilter})
-			// open
+			// open -- web-midi-api hasn't been updated, in the spec this returns a promise
 			target.open()
 			// return target once open
 			return opened.then( _=> target)
@@ -88,12 +88,14 @@ class NanoKontrol2{
 		  output= await this.consumeOutput( optionalName),
 		  name= output.name
 
-		// prepare to read scene dump on input
+		// get input
 		await this.consumeInput( optionalInputName|| name)
+		// insure listen-for capability used by readOne is loaded
 		await loadListenFor()
+		// begin waiting for read of scene data
 		var readResponse= this.readOne( messages.currentSceneDataDump, optionalInputName|| name)
 
-		// send requeset
+		// send scene data requeset
 		var req= new messages.currentSceneDataDumpRequest().toBytes()
 		output.send( req)
 
@@ -131,7 +133,7 @@ class NanoKontrol2{
 	static encodeScene( bytes){
 		var
 		  n= Math.ceil( bytes.length* 8/ 7),
-		  output= new UintArray( n)
+		  output= new Uint8Array( n)
 		var
 		  highPos= 0,
 		  highCount= 1,
@@ -154,14 +156,14 @@ class NanoKontrol2{
 	async readOne( messageKlass, optionalInputName){
 		var port= this.consumeInput( optionalInputName)
 		if( port.then){
-			port= await port.then
+			port= await port
 		}
 		return await messageKlass.listenFor( port, "midimessage")
 	}
 }
 
-function portOpenFilter( msg, {eventType}){
-	return msg.port&& msg.port.connection=== "open"
+function portOpenFilter( msg, {eventType}= {}){
+	return msg.port&& msg.port.connection=== "open"&& msg.port.state=== "connected"
 }
 
 export default NanoKontrol2
