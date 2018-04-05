@@ -46,7 +46,7 @@ export class NanoKontrol2{
 	}
 	_consume( optionalName, category){
 		// zalgo zalgo zalgo
-		if( !this.midi){
+		if( !this.midi|| this.midi.then){
 			return this.requestAccess().then( _=> this._consume( optionalName, category))
 		}
 		var target
@@ -55,8 +55,7 @@ export class NanoKontrol2{
 			target= this.midi[ category].get( firstId)
 		}else{
 			var lowerOptional= optionalName.toLowerCase()
-			for( var el of this.midi[ category]){
-				var port= el[ 1]
+			for( var port of this.midi[ category].values()){
 				if( port.name.toLowerCase().indexOf( lowerOptional)!== -1){
 					target= port
 					break
