@@ -1,4 +1,4 @@
-import { requestMIDIAccess, close} from "web-midi-api"
+import { requestMIDIAccess, close} from "web-midi-api-shim"
 import once from "eventtarget-once"
 import * as messages from "./messages"
 import { loadListenFor} from "web-midi-message/Message.js"
@@ -29,7 +29,7 @@ const transport= {
 	record: 45
 }
 
-class NanoKontrol2{
+export class NanoKontrol2{
 	static get Group(){
 		return group
 	}
@@ -167,4 +167,3 @@ function portOpenFilter( msg, {eventType}= {}){
 }
 
 export default NanoKontrol2
-export {NanoKontrol2}

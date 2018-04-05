@@ -2,13 +2,14 @@
 "use strict"
 
 var stdEsm= require( "@std/esm")( module)
-exports.webMidiNanoKontrol= stdEsm( "./web-midi-nanokontrol.js").default
-exports.main= stdEsm( "./main.js")
-exports.messages= stdEsm( "./messages.js")
-exports.scene= stdEsm( "./scene.js")
+module.exports.WebMidiNanoKontrol= stdEsm( "./web-midi-nanokontrol.js").default
+module.exports.main= stdEsm( "./main.js").default
+module.exports.messages= stdEsm( "./messages.js")
+module.exports.scene= stdEsm( "./scene.js")
 
-exports.webMidiMessage= stdEsm( "web-midi-message")
-exports.webMidiApi= stdEsm( "web-midi-api")
+// TODO: remove in prod library. here just while repl'ing this into life.
+module.exports.webMidiMessage= stdEsm( "web-midi-message")
+module.exports.webMidiApi= stdEsm( "web-midi-api-shim")
 
 if( require.main=== module){
 	module.exports.main()
