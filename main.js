@@ -2,7 +2,8 @@ import WebMidiNanoKontrol from "./web-midi-nanokontrol.js"
 
 let webMidiNanoKontrol= new WebMidiNanoKontrol();
 
-function main(){
+async function main(){
+	webMidiNanoKontrol.requestAccess()
 }
 
 export {
