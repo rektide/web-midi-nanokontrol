@@ -30,7 +30,7 @@ const transport= {
 	record: 45
 }
 
-export class NanoKontrol2{
+export class WebMidiNanokontrol{
 	static get Group(){
 		return group
 	}
@@ -82,7 +82,11 @@ export class NanoKontrol2{
 	consumeOutput( optionalOutputName){
 		return this._consume( optionalOutputName, "outputs")
 	}
-	async dumpScene( optionalName, optionalInputName){
+	async readScene( optionalName, optionalInputName){
+		if( this.scene){
+			return this.scene
+		}
+
 		// get output midi
 		var
 		  output= await this.consumeOutput( optionalName),
@@ -101,10 +105,9 @@ export class NanoKontrol2{
 
 		// wait for scene dump
 		var scene= await readResponse
-		scene.data= decode( scene.data)
-		return scene
+		this.scene= decode( scene.data)
+		return this.scene
 	}
-
 	async readOne( messageKlass, optionalInputName){
 		var port= this.consumeInput( optionalInputName)
 		if( port.then){
@@ -118,4 +121,4 @@ function portOpenFilter( msg, {eventType}= {}){
 	return msg.port&& msg.port.connection=== "open"&& msg.port.state=== "connected"
 }
 
-export default NanoKontrol2
+export default WebMidiNanokontrol
