@@ -115,6 +115,10 @@ function normalize( o, name){
 			o.values[ i]= i // values are identity if not defined
 		}
 	}
+	for( var i in o.values|| []){
+		var key= o.values[ i]
+		o[ key]= Number.parseInt( i)
+	}
 	return o
 }
 
